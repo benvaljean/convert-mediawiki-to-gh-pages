@@ -68,7 +68,6 @@ class Mysql:
             f"inner join {table_prefix}user as user on " \
             f"user.user_id = (select if(revision.rev_user = 0, 1, revision.rev_user)) " \
             f"order by revision.rev_timestamp"
-        # print(query_gold)        
         result = self.query(query_gold)
 
 
@@ -200,6 +199,7 @@ def main ():
         raise Exception("The output path '%s' already exists" % ("pages"))
 
     os.mkdir(options.output_dir)
+    os.mkdir(os.path.join(options.output_dir, "pages"))
 
     git = subprocess.Popen(["git", "init"], cwd=options.output_dir)
     git.wait()
@@ -212,7 +212,7 @@ def main ():
                     cwd=options.output_dir)
             git.wait()
         else:
-            new_page = open(os.path.join("./pages", filename), "w")
+            new_page = open(os.path.join(options.output_dir, "pages", filename), "w")
             new_page.write("---\n")
             new_page.write("layout: default\n")
             new_page.write("title: %s\n" % (re.sub("_", " ", rev["page_name"])))
@@ -223,7 +223,7 @@ def main ():
                 new_page.write(i + "\n")
             new_page.close()
 
-            git = subprocess.Popen(["git", "add", filename],
+            git = subprocess.Popen(["git", "add", os.path.join("pages", filename)],
                     cwd=options.output_dir)
             git.wait()
 

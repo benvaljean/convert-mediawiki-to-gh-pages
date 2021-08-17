@@ -2,7 +2,7 @@
 
 class Mysql:
 
-    def __init__ (self, database, username, password=None):
+    def __init__ (self, hostname, database, username, password=None):
         """Initialize.
 
         database The database name.
@@ -10,11 +10,12 @@ class Mysql:
         password The password to use. This argument is optional.
         """
 
+        self.hostname = hostname
         self.database = database
         self.username = username
         self.password = password
 
-        self.mysql_command = [ "mysql", "-u", self.username ]
+        self.mysql_command = [ "mysql", "-h", self.hostname, "-u", self.username ]
         if self.password:
             self.mysql_command += [ "--password=%s" % (self.password) ]
 
@@ -59,20 +60,17 @@ class Mysql:
         username, user_email, mediawiki_text, markdown_text }.
         """
 
-        result = self.query("select concat_ws(',', "
-                + "revision.rev_timestamp, "
-                + "revision.rev_page, "
-                + "revision.rev_deleted, "
-                + "page.page_title, "
-                + "user.user_real_name, "
-                + "user.user_email, "
-                + "text.old_text) "
-                + "from revision "
-                + "inner join text on text.old_id = revision.rev_text_id "
-                + "inner join page on page.page_id = revision.rev_page "
-                + "inner join user on "
-                + "user.user_id = (select if(revision.rev_user = 0, 1, revision.rev_user)) "
-                + "order by revision.rev_timestamp")
+        table_prefix = "bv_"
+        query_gold = f"select concat_ws(',', revision.rev_timestamp, revision.rev_page, revision.rev_deleted, page.page_title, " \
+            f"user.user_real_name, user.user_email, text.old_text) from {table_prefix}revision as revision " \
+            f"inner join {table_prefix}text as text on text.old_id = revision.rev_text_id " \
+            f"inner join {table_prefix}page as page on page.page_id = revision.rev_page " \
+            f"inner join {table_prefix}user as user on " \
+            f"user.user_id = (select if(revision.rev_user = 0, 1, revision.rev_user)) " \
+            f"order by revision.rev_timestamp"
+        # print(query_gold)        
+        result = self.query(query_gold)
+
 
         print("got %s revisions" % (len(result)))
 
@@ -173,6 +171,10 @@ def main ():
             + "format, preserving the editing history and attribution. The "
             + "converted pages are stored in a git repository.")
 
+    parser.add_argument("--hostname",
+            help = "DB hostname",
+            required = True)
+
     parser.add_argument("--database",
             help = "The mysql database",
             required = True)
@@ -190,7 +192,7 @@ def main ():
 
     options = parser.parse_args()
 
-    mysql = Mysql(options.database, options.user, options.password)
+    mysql = Mysql(options.hostname, options.database, options.user, options.password)
 
     revisions = mysql.get_all_revisions()
 
